@@ -1,13 +1,17 @@
 # Build output
 build/
+managed_components/
 
 # Project configuration (contains WiFi credentials)
 sdkconfig
 sdkconfig.old
+
+# clangd
+compile_commands.json
+.cache/
 
 # macOS
 .DS_Store
 
 # Editor
 .vscode/
-managed_components/
