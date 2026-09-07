@@ -38,6 +38,9 @@ void app_main(void)
         return;
     }
 
+    /* Updates are triggered on demand through POST /api/ota, not on boot.
+       Starting a download automatically here would loop forever: every new
+       image would boot, download, switch slots and restart again. */
     httpd_handle_t server = http_server_start();
     if (server == NULL) {
         ESP_LOGE(TAG, "HTTP server failed to start");

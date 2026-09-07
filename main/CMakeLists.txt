@@ -5,6 +5,7 @@ idf_component_register(SRCS "app_main.c"
                             "sensor.c"
                             "dht.c"
                             "mdns_service.c"
+                            "ota.c"
                        INCLUDE_DIRS "."
                        REQUIRES nvs_flash
                                 esp_wifi
@@ -15,6 +16,7 @@ idf_component_register(SRCS "app_main.c"
                                 esp_timer
                                 json
                                 mdns
+                                esp_http_client
 				app_update esp_app_format
                        EMBED_FILES "www/index.html"
                                    "www/style.css"

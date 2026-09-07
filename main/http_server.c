@@ -8,6 +8,7 @@
 
 #include "http_server.h"
 #include "sensor.h"
+#include "ota.h"
 
 static const char *TAG = "http_server";
 
@@ -72,6 +73,43 @@ static esp_err_t static_get_handler(httpd_req_t *req)
     // request on what should have been a kept-alive connection.
     return ESP_OK;
 }
+
+/* POST /api/ota — starts a firmware update in the background.
+   Responds before the download begins: the update takes about 15 seconds
+   and ends in a reboot, so holding the connection open would only make
+   the client time out. */
+static esp_err_t ota_post_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "POST /api/ota from fd %d", httpd_req_to_sockfd(req));
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+
+    esp_err_t err = ota_trigger_async();
+
+    if (err == ESP_ERR_INVALID_STATE) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return httpd_resp_send(req, "{\"error\":\"update already running\"}",
+                               HTTPD_RESP_USE_STRLEN);
+    }
+
+    if (err != ESP_OK) {
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        return httpd_resp_send(req, "{\"error\":\"could not start update\"}",
+                               HTTPD_RESP_USE_STRLEN);
+    }
+
+    httpd_resp_set_status(req, "202 Accepted");
+    return httpd_resp_send(req, "{\"status\":\"update started\"}",
+                           HTTPD_RESP_USE_STRLEN);
+}
+
+static const httpd_uri_t ota_uri = {
+    .uri      = "/api/ota",
+    .method   = HTTP_POST,
+    .handler  = ota_post_handler,
+    .user_ctx = NULL,
+};
 
 
 // Returns the most recent sensor sample as JSON. The sensor itself is polled
@@ -157,6 +195,7 @@ httpd_handle_t http_server_start(void)
     // Registration order matters: httpd returns the first matching handler,
     // so the "/*" catch-all must always be registered last.
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &sensor_uri));
+    ESP_ERROR_CHECK(httpd_register_uri_handler(server, &ota_uri));
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &static_uri));
 
     ESP_LOGI(TAG, "Server started, %u asset(s) available", (unsigned) ASSET_COUNT);

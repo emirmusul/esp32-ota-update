@@ -38,4 +38,18 @@ menu "esp32-http-server Configuration"
             The board answers to <hostname>.local on the local network.
             Letters, digits and hyphens only.
 
+    config OTA_UPDATE_URL
+        string "OTA firmware URL"
+        default "http://192.168.1.100:8070/esp32-ota-update.bin"
+        help
+            HTTP URL of the firmware image to download. Must be reachable
+            from the board's network.
+
+    config OTA_RECV_TIMEOUT_MS
+        int "OTA receive timeout (ms)"
+        default 10000
+        help
+            Timeout for a single HTTP read. A stalled download aborts
+            after this many milliseconds.
+
 endmenu
