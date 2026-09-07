@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ESP32 Sensor Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="card">
+    <h1>ESP32 Sensor Dashboard</h1>
+
+    <div class="readings">
+      <div class="reading">
+        <span class="label">Temperature</span>
+        <span class="value" id="temperature">--</span>
+        <span class="unit">&deg;C</span>
+      </div>
+      <div class="reading">
+        <span class="label">Humidity</span>
+        <span class="value" id="humidity">--</span>
+        <span class="unit">%</span>
+      </div>
+    </div>
+
+    <p class="status" id="status">Waiting for JavaScript...</p>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

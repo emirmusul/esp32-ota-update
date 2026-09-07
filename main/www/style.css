@@ -1,0 +1,82 @@
+:root {
+  --bg: #12161c;
+  --card: #1b212b;
+  --text: #e6e9ef;
+  --muted: #8b94a5;
+  --accent: #4ea3ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 32px 40px;
+  min-width: 320px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+h1 {
+  margin: 0 0 24px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.readings {
+  display: flex;
+  gap: 32px;
+}
+
+.reading {
+  display: flex;
+  flex-direction: column;
+}
+
+.label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.value {
+  font-size: 40px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.unit {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.status {
+  margin: 24px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.status.ok {
+  color: #5fd08a;
+}
+.status.warn {
+  color: #e8b64c;
+}
+
+.status.error {
+  color: #e8685d;
+}

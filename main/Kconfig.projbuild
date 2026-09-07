@@ -1,0 +1,41 @@
+menu "esp32-http-server Configuration"
+
+    config WIFI_SSID
+        string "WiFi SSID"
+        default "myssid"
+        help
+            SSID of the access point to connect to.
+
+    config WIFI_PASSWORD
+        string "WiFi password"
+        default "mypassword"
+        help
+            WPA2 password of the access point.
+
+    config WIFI_MAX_RETRY
+        int "Maximum connection retries"
+        default 5
+        help
+            Number of reconnection attempts before giving up.
+
+    config DHT_GPIO
+        int "DHT22 data GPIO"
+        default 4
+        help
+            GPIO number wired to the DHT22 data line.
+
+    config DHT_INTERVAL_MS
+        int "Sensor sampling interval (ms)"
+        default 2000
+        help
+            Delay between two sensor readings. The DHT22 needs at least
+            2000 ms between samples, so do not go below that.
+
+    config MDNS_HOSTNAME
+        string "mDNS hostname"
+        default "esp32"
+        help
+            The board answers to <hostname>.local on the local network.
+            Letters, digits and hyphens only.
+
+endmenu
