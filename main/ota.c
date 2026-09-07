@@ -5,6 +5,7 @@
 
 #include "esp_app_desc.h"
 #include "esp_http_client.h"
+#include "esp_image_format.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
 
@@ -12,7 +13,14 @@
 
 static const char *TAG = "ota";
 
-#include "freertos/semphr.h"
+#define OTA_BUF_SIZE 1024
+
+/* The application descriptor sits at a fixed offset in every ESP-IDF image,
+   right after the image header and the first segment header. Reading this
+   many bytes is enough to learn the version without downloading the rest. */
+#define OTA_DESC_OFFSET (sizeof(esp_image_header_t) + \
+                         sizeof(esp_image_segment_header_t))
+#define OTA_HEADER_BYTES (OTA_DESC_OFFSET + sizeof(esp_app_desc_t))
 
 /* Guards against a second update starting while one is in flight.
    Two concurrent esp_ota_begin() calls on the same partition would
@@ -20,7 +28,40 @@ static const char *TAG = "ota";
    trivially easy to hit twice. */
 static volatile bool s_update_in_progress = false;
 
-#define OTA_BUF_SIZE 1024
+/* esp_http_client_read() returns whatever the socket has available, which
+   follows TCP segment boundaries rather than anything we asked for. Loop
+   until the requested count is in hand or the connection ends. */
+static int read_exact(esp_http_client_handle_t client, char *buf, int want)
+{
+    int got = 0;
+
+    while (got < want) {
+        int n = esp_http_client_read(client, buf + got, want - got);
+        if (n <= 0) {
+            return (n < 0) ? -1 : got;
+        }
+        got += n;
+    }
+
+    return got;
+}
+
+/* Compares the incoming image against the one currently executing. The
+   version string alone is not enough during development, where rebuilding
+   without bumping PROJECT_VER is common, so the ELF digest decides when the
+   strings match. */
+static bool image_is_already_running(const esp_app_desc_t *incoming)
+{
+    const esp_app_desc_t *running = esp_app_get_description();
+
+    if (strncmp(incoming->version, running->version,
+                sizeof(incoming->version)) != 0) {
+        return false;
+    }
+
+    return memcmp(incoming->app_elf_sha256, running->app_elf_sha256,
+                  sizeof(incoming->app_elf_sha256)) == 0;
+}
 
 esp_err_t ota_download_to_inactive_slot(const char *url)
 {
@@ -78,6 +119,53 @@ esp_err_t ota_download_to_inactive_slot(const char *url)
         return ESP_ERR_INVALID_SIZE;
     }
 
+    char *buf = malloc(OTA_BUF_SIZE);
+    if (buf == NULL) {
+        ESP_LOGE(TAG, "Out of memory");
+        esp_http_client_close(client);
+        esp_http_client_cleanup(client);
+        return ESP_ERR_NO_MEM;
+    }
+
+    /* Pull enough of the body to cover the descriptor. These bytes are part
+       of the image and cannot be re-read later — TCP has no rewind — so they
+       stay in the buffer and become the first esp_ota_write(). */
+    int head = read_exact(client, buf, OTA_HEADER_BYTES);
+    if (head < (int) OTA_HEADER_BYTES) {
+        ESP_LOGE(TAG, "Only %d of %u header bytes arrived",
+                 head, (unsigned) OTA_HEADER_BYTES);
+        free(buf);
+        esp_http_client_close(client);
+        esp_http_client_cleanup(client);
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    esp_app_desc_t incoming;
+    memcpy(&incoming, buf + OTA_DESC_OFFSET, sizeof(incoming));
+
+    /* A wrong magic word means the server handed us something that is not an
+       ESP-IDF application: an error page, the wrong file, a truncated build. */
+    if (incoming.magic_word != ESP_APP_DESC_MAGIC_WORD) {
+        ESP_LOGE(TAG, "Not an ESP-IDF image (magic 0x%08lx)",
+                 (unsigned long) incoming.magic_word);
+        free(buf);
+        esp_http_client_close(client);
+        esp_http_client_cleanup(client);
+        return ESP_ERR_OTA_VALIDATE_FAILED;
+    }
+
+    ESP_LOGI(TAG, "Server offers %s v%s (built %s %s)",
+             incoming.project_name, incoming.version,
+             incoming.date, incoming.time);
+
+    if (image_is_already_running(&incoming)) {
+        ESP_LOGW(TAG, "Already running this build, skipping download");
+        free(buf);
+        esp_http_client_close(client);
+        esp_http_client_cleanup(client);
+        return ESP_ERR_NOT_FOUND;
+    }
+
     ESP_LOGI(TAG, "Image size %d bytes, erasing...", content_length);
 
     /* Passing the exact size erases only the sectors that will be used.
@@ -86,6 +174,7 @@ esp_err_t ota_download_to_inactive_slot(const char *url)
     err = esp_ota_begin(target, content_length, &ota_handle);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "esp_ota_begin failed: %s", esp_err_to_name(err));
+        free(buf);
         esp_http_client_close(client);
         esp_http_client_cleanup(client);
         return err;
@@ -93,19 +182,19 @@ esp_err_t ota_download_to_inactive_slot(const char *url)
 
     ESP_LOGI(TAG, "Erase done, downloading...");
 
-    char *buf = malloc(OTA_BUF_SIZE);
-    if (buf == NULL) {
-        ESP_LOGE(TAG, "Out of memory");
-        esp_ota_abort(ota_handle);
-        esp_http_client_close(client);
-        esp_http_client_cleanup(client);
-        return ESP_ERR_NO_MEM;
+    /* The bytes consumed while inspecting the header go in first. */
+    int written = 0;
+    err = esp_ota_write(ota_handle, buf, head);
+    if (err == ESP_OK) {
+        written = head;
+    } else {
+        ESP_LOGE(TAG, "esp_ota_write failed on the header: %s",
+                 esp_err_to_name(err));
     }
 
-    int written = 0;
     int last_logged_pct = -1;
 
-    while (written < content_length) {
+    while (err == ESP_OK && written < content_length) {
         int n = esp_http_client_read(client, buf, OTA_BUF_SIZE);
 
         if (n < 0) {
@@ -211,8 +300,14 @@ static void ota_update_task(void *arg)
 {
     esp_err_t err = ota_update_and_reboot(NULL);
 
-    /* Only reached on failure: esp_restart() does not return. */
-    ESP_LOGE(TAG, "OTA update failed: %s", esp_err_to_name(err));
+    /* Only reached on failure or a skipped update: esp_restart() does not
+       return. */
+    if (err == ESP_ERR_NOT_FOUND) {
+        ESP_LOGI(TAG, "No update needed");
+    } else {
+        ESP_LOGE(TAG, "OTA update failed: %s", esp_err_to_name(err));
+    }
+
     s_update_in_progress = false;
     vTaskDelete(NULL);
 }

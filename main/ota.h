@@ -6,8 +6,13 @@
  * Download a firmware image over HTTP and write it into the inactive
  * OTA slot. Does not change the boot partition.
  *
+ * Aborts early with ESP_ERR_NOT_FOUND if the image on the server is the
+ * one already running, so an unchanged build costs one HTTP request
+ * instead of a full erase and write cycle.
+ *
  * @param url  HTTP URL of the .bin image.
- * @return ESP_OK if the image was written and verified.
+ * @return ESP_OK if the image was written and verified,
+ *         ESP_ERR_NOT_FOUND if the server offers the running version.
  */
 esp_err_t ota_download_to_inactive_slot(const char *url);
 

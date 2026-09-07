@@ -1,11 +1,14 @@
 #include <math.h>
 #include <string.h>
 
+#include "esp_app_desc.h"
 #include "esp_log.h"
 #include "esp_http_server.h"
+#include "esp_ota_ops.h"
 #include "esp_timer.h"
 #include "cJSON.h"
 
+#include "boot_info.h"
 #include "http_server.h"
 #include "sensor.h"
 #include "ota.h"
@@ -73,6 +76,59 @@ static esp_err_t static_get_handler(httpd_req_t *req)
     // request on what should have been a kept-alive connection.
     return ESP_OK;
 }
+
+/* GET /api/version — what is running right now.
+   The browser uses this to notice that a reboot has happened and that the
+   image on the other side of it is different, which is the only way it can
+   tell a successful update from a rollback. */
+static esp_err_t version_get_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+
+    const esp_app_desc_t  *desc    = esp_app_get_description();
+    const esp_partition_t *running = esp_ota_get_running_partition();
+
+    esp_ota_img_states_t state;
+    const char *state_str = "UNKNOWN";
+    if (esp_ota_get_state_partition(running, &state) == ESP_OK) {
+        state_str = boot_info_state_str(state);
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL) {
+        return httpd_resp_send_500(req);
+    }
+
+    char built[40];
+    snprintf(built, sizeof(built), "%s %s", desc->date, desc->time);
+
+    cJSON_AddStringToObject(root, "version", desc->version);
+    cJSON_AddStringToObject(root, "project", desc->project_name);
+    cJSON_AddStringToObject(root, "built", built);
+    cJSON_AddStringToObject(root, "slot", running->label);
+    cJSON_AddStringToObject(root, "state", state_str);
+    cJSON_AddNumberToObject(root, "uptime_s",
+                            (double) (esp_timer_get_time() / 1000000));
+
+    char *body = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+
+    if (body == NULL) {
+        return httpd_resp_send_500(req);
+    }
+
+    esp_err_t err = httpd_resp_send(req, body, HTTPD_RESP_USE_STRLEN);
+    cJSON_free(body);
+    return err;
+}
+
+static const httpd_uri_t version_uri = {
+    .uri      = "/api/version",
+    .method   = HTTP_GET,
+    .handler  = version_get_handler,
+    .user_ctx = NULL,
+};
 
 /* POST /api/ota — starts a firmware update in the background.
    Responds before the download begins: the update takes about 15 seconds
@@ -195,6 +251,7 @@ httpd_handle_t http_server_start(void)
     // Registration order matters: httpd returns the first matching handler,
     // so the "/*" catch-all must always be registered last.
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &sensor_uri));
+    ESP_ERROR_CHECK(httpd_register_uri_handler(server, &version_uri));
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &ota_uri));
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &static_uri));
 

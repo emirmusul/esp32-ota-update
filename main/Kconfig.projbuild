@@ -1,4 +1,4 @@
-menu "esp32-http-server Configuration"
+menu "esp32-ota-update Configuration"
 
     config WIFI_SSID
         string "WiFi SSID"

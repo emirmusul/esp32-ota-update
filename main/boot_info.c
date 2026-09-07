@@ -9,7 +9,7 @@
 
 static const char *TAG = "boot_info";
 
-static const char *ota_state_str(esp_ota_img_states_t state)
+const char *boot_info_state_str(esp_ota_img_states_t state)
 {
     switch (state) {
     case ESP_OTA_IMG_NEW:            return "NEW";
@@ -45,7 +45,7 @@ void boot_info_log(void)
     esp_ota_img_states_t state;
     esp_err_t err = esp_ota_get_state_partition(running, &state);
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "image state  : %s", ota_state_str(state));
+        ESP_LOGI(TAG, "image state  : %s", boot_info_state_str(state));
     } else {
         ESP_LOGI(TAG, "image state  : no otadata entry (%s)",
                  esp_err_to_name(err));

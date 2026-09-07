@@ -25,6 +25,20 @@
     </div>
 
     <p class="status" id="status">Waiting for JavaScript...</p>
+
+    <section class="firmware">
+      <span class="label">Firmware</span>
+
+      <dl class="meta">
+        <dt>Version</dt><dd id="fw-version">--</dd>
+        <dt>Slot</dt><dd id="fw-slot">--</dd>
+        <dt>State</dt><dd id="fw-state">--</dd>
+        <dt>Built</dt><dd id="fw-built">--</dd>
+      </dl>
+
+      <button id="update-button" type="button">Check for update</button>
+      <p class="status" id="ota-status"></p>
+    </section>
   </main>
 
   <script src="/app.js"></script>

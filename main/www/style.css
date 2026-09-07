@@ -4,6 +4,7 @@
   --text: #e6e9ef;
   --muted: #8b94a5;
   --accent: #4ea3ff;
+  --line: #2a3240;
 }
 
 * {
@@ -73,10 +74,66 @@ h1 {
 .status.ok {
   color: #5fd08a;
 }
+
 .status.warn {
   color: #e8b64c;
 }
 
 .status.error {
   color: #e8685d;
+}
+
+.firmware {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  margin: 12px 0 18px;
+  font-size: 13px;
+}
+
+.meta dt {
+  color: var(--muted);
+}
+
+.meta dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* PENDING_VERIFY means the self-test has not confirmed this image yet, so
+   a reset right now would revert the board. Worth making obvious. */
+.meta dd.pending {
+  color: #e8b64c;
+}
+
+button {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: rgba(78, 163, 255, 0.1);
+}
+
+button:disabled {
+  border-color: var(--line);
+  color: var(--muted);
+  cursor: default;
+}
+
+.firmware .status {
+  margin-top: 12px;
 }

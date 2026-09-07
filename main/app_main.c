@@ -53,5 +53,5 @@ void app_main(void)
        into the previous slot, so nothing below it is guaranteed to run. */
     self_test_run();
 
-    ESP_LOGI(TAG, "Setup complete");
+    ESP_LOGI(TAG, "Setup complete.");
 }
