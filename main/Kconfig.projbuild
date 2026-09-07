@@ -51,5 +51,14 @@ menu "esp32-http-server Configuration"
         help
             Timeout for a single HTTP read. A stalled download aborts
             after this many milliseconds.
+    
+    config SELF_TEST_TIMEOUT_MS
+        int "Self-test sensor timeout (ms)"
+        default 8000
+        help
+            How long the post-boot health check waits for the first valid
+            sensor reading before declaring the firmware broken. Must be
+            longer than the sensor task's start-up delay plus a few
+            sampling intervals.
 
 endmenu

@@ -6,6 +6,7 @@
 #include "http_server.h"
 #include "sensor.h"
 #include "mdns_service.h"
+#include "self_test.h"
 
 static const char *TAG = "app_main";
 
@@ -46,6 +47,11 @@ void app_main(void)
         ESP_LOGE(TAG, "HTTP server failed to start");
         return;
     }
+
+    /* Runs last, once every subsystem has had a chance to come up. When the
+       running image is on trial this call either confirms it or reboots
+       into the previous slot, so nothing below it is guaranteed to run. */
+    self_test_run();
 
     ESP_LOGI(TAG, "Setup complete");
 }
