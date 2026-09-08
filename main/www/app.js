@@ -158,7 +158,7 @@ function watchForReboot(before) {
         currentBuild = info;
         renderVersion(info);
 
-        if (info.built !== before.built) {
+        if (info.elf_sha !== before.elf_sha) {
           setOtaStatus("Updated to " + info.version + " on " + info.slot, "ok");
         } else {
           /* Same build after a reboot means the new image failed its

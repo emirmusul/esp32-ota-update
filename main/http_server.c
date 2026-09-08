@@ -108,6 +108,13 @@ static esp_err_t version_get_handler(httpd_req_t *req)
     cJSON_AddStringToObject(root, "built", built);
     cJSON_AddStringToObject(root, "slot", running->label);
     cJSON_AddStringToObject(root, "state", state_str);
+    /* First bytes of the ELF digest, enough to tell two builds apart when
+   the version string and the compile timestamp are identical. */
+    char sha[17];
+    for (int i = 0; i < 8; i++) {
+        snprintf(sha + i * 2, 3, "%02x", desc->app_elf_sha256[i]);
+    }
+    cJSON_AddStringToObject(root, "elf_sha", sha);
     cJSON_AddNumberToObject(root, "uptime_s",
                             (double) (esp_timer_get_time() / 1000000));
 
